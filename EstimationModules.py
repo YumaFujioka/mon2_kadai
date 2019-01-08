@@ -2,10 +2,10 @@ import numpy as np
 from itertools import product
 
 class Estimator():
-    def __init__(self, M, N, BitsNum):
+    def __init__(self, M, N, SymNum_per_Trans):
         self.M = M
         self.N = N
-        self.BitsNum = BitsNum  # データシンボル長の修正で連鎖的に修正がいるかも
+        self.SymNum_per_Trans = SymNum_per_Trans  # データシンボル長の修正で連鎖的に修正がいるかも
 
         # MLD用の候補リスト。先に作っておく。
         # QPSKを仮定
@@ -31,7 +31,7 @@ class Estimator():
     def mld(self, H, rx_syms, N_0):
         # np.tile...はシンボル長の数だけ候補シンボルを並べただけの行列。やってることは|y - Hx|でしかない。
         # 4^M：QのM乗が候補数
-        diff_mat = np.array([rx_syms - H @ np.tile(self.syms_candi_mat[:, i].reshape(self.M, 1), int(self.BitsNum/2) ) for i in range(4**self.M)])
+        diff_mat = np.array([rx_syms - H @ np.tile(self.syms_candi_mat[:, i].reshape(self.M, 1), int(self.SymNum_per_Trans) ) for i in range(4**self.M)])
         argmin_index = np.argmin(np.linalg.norm(diff_mat, axis=1), axis=0)
-        rx_syms = np.array([self.syms_candi_mat[:, index] for index in argmin_index]).T
-        return rx_syms
+        tx_syms_hat = np.array([self.syms_candi_mat[:, index] for index in argmin_index]).T
+        return tx_syms_hat

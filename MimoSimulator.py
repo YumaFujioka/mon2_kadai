@@ -11,10 +11,10 @@ parser = argparse.ArgumentParser(
             )
 # 推定方式、入力アンテナ数、出力アンテナ数、イテレーション数、ビット数
 parser.add_argument("-m", "--Method", action="store", default="zf")
-parser.add_argument("-s", "--SigNum", action="store", default=4)
+parser.add_argument("-t", "--TransNum", action="store", default=4)
 parser.add_argument("-o", "--ObsNum", action="store", default=4)
 parser.add_argument("-i", "--IterNum", action="store", default=50000)
-parser.add_argument("-b", "--BitsNum", action="store", default=256)
+parser.add_argument("-s", "--SymNum", action="store", default=256)
 args = parser.parse_args()
 
 def bits2QPSK(bits):
@@ -29,30 +29,30 @@ def QPSK2bits(QPSK):
     bits = np.insert(re_bits, np.arange(1, len(re_bits[0])+1), im_bits, axis=1)
     return bits
 
-def show_settings(Method, SigNum, ObsNum, IterNum, BitsNum, PSK):
+def show_settings(Method, TransNum, ObsNum, IterNum, SymNum, PSK):
     print(
         "==========\n",
         "Settings\n",
         "\tMethod=\t\t", args.Method,
-        "\n\tSigNum=\t\t", SigNum,
+        "\n\tSigNum=\t\t", TransNum,
         "\n\tObsNum=\t\t", ObsNum,
         "\n\tIteration=\t", IterNum,
-        "\n\tSigBits=\t", BitsNum,
+        "\n\tSigSymNum=\t", SymNum,
         "\n\tPSK=\t\t", PSK,
         )
 
 if __name__ == "__main__":
 
     # 送信アンテナ数、受信アンテナ数
-    M = int(args.SigNum)
+    M = int(args.TransNum)
     N = int(args.ObsNum)
-    # ループ数、シンボルビット数
+    # ループ数、送信機あたりのシンボル数
     IterNum = int(args.IterNum)
-    BitsNum = int(args.BitsNum)
+    SymNum_per_Trans = args.SymNum / M
     # 推測器
-    estimator = EstimationModules.Estimator(M, N, BitsNum)
+    estimator = EstimationModules.Estimator(M, N, SymNum_per_Trans)
     # ログ表示
-    show_settings(args.Method, M, N, IterNum, BitsNum, "QPSK")
+    show_settings(args.Method, M, N, IterNum, args.SymNum, "QPSK")
 
     print("==========\n", "Simulation Phase.")
     SNR_dB_list = np.linspace(0, 40.0, 11) # 0〜40dBでシミュレート
@@ -67,10 +67,10 @@ if __name__ == "__main__":
 
         #####ctはappendで処理？
         for i in tqdm(range(IterNum), ncols=100, leave=False, desc="SNR_dB=\t"+str(SNR_dB)):
-            data_bits = np.where(np.random.rand(M, BitsNum) > 0.5, 1, 0)                                          # M個の(BitsNum)bit列を作成
-            tx_syms = bits2QPSK(data_bits)                                                                        # シンボル系列。QPSKなので(BitsNum)/2個のシンボル系列が出来る
-            H_mat = (np.random.randn(N, M) + 1j * np.random.randn(N, M)) / np.sqrt(2)                             # 通信路行列
-            noise_syms = (np.random.randn(N, int(BitsNum/2)) + 1j * np.random.randn(N, int(BitsNum/2))) * sigma   # 雑音シンボル
+            data_bits = np.where(np.random.rand(M, int(SymNum_per_Trans * 2)) > 0.5, 1, 0)  # M個の(SymNum_per_Trans*2)bit列を作成
+            tx_syms = bits2QPSK(data_bits)                                                  # シンボル系列。QPSKなのでSymNum_per_Trans個のシンボル系列が出来る
+            H_mat = (np.random.randn(N, M) + 1j * np.random.randn(N, M)) / np.sqrt(2)       # 通信路行列
+            noise_syms = (np.random.randn(N, int(SymNum_per_Trans)) + 1j * np.random.randn(N, int(SymNum_per_Trans))) * sigma   # 雑音シンボル
 
             rx_syms = H_mat @ tx_syms + noise_syms                                  # 通信路通過
             tx_syms_hat = eval("estimator." + args.Method)(H_mat, rx_syms, N_0)     # 推定
@@ -78,8 +78,8 @@ if __name__ == "__main__":
 
             num_of_error_bit += np.sum( np.sum( np.abs(data_bits - est_bits)))      # 誤りビット数をカウント
 
-        BER = num_of_error_bit / (IterNum * BitsNum * M) # BER計算
-        BER_list.append(BER)                             # BER格納
+        BER = num_of_error_bit / (IterNum * SymNum_per_Trans * 2 * M)   # BER計算
+        BER_list.append(BER)                                            # BER格納
         print("\t| SNR[dB]= {0:>6} BER= {1:<10}".format(SNR_dB, BER))
 
     print(" Simulation Completed.\n", "==========")
