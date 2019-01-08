@@ -2,6 +2,9 @@ import numpy as np
 import EstimationModules
 import argparse
 from tqdm import tqdm
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(
             prog="MimoSimulator",
@@ -83,3 +86,16 @@ if __name__ == "__main__":
         print("\t| SNR[dB]= {0:>6} BER= {1:<10}".format(SNR_dB, BER))
 
     print(" Simulation Completed.\n", "==========")
+
+    plt.figure()
+    plt.title("method="+str(args.Method)+" M="+str(M)+" N="+str(N), fontsize=20)
+    plt.xlabel("SNR[dB]", fontsize=16)
+    plt.ylabel("BER", fontsize=16)
+    mpl.style.use("seaborn-whitegrid")
+    plt.grid()
+    plt.xlim([0, 40])
+    plt.ylim([0, 0.35])
+    plt.plot(SNR_dB_list, BER_list, marker="o", ls=":", color="green")
+
+    plt.savefig("method="+str(args.Method)+"_M="+str(M)+"_N="+str(N)+'.png')
+    print("saved graph.")
