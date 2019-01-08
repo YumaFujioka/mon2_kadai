@@ -1,6 +1,7 @@
 import numpy as np
 import EstimationModules
 import argparse
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(
             prog="MimoSimulator",
@@ -28,9 +29,21 @@ def QPSK2bits(QPSK):
     bits = np.insert(re_bits, np.arange(1, len(re_bits[0])+1), im_bits, axis=1)
     return bits
 
+def show_settings(Method, SigNum, ObsNum, IterNum, BitsNum, PSK):
+    print(
+        "==========\n",
+        "Settings\n",
+        "\tMethod=\t\t", args.Method,
+        "\n\tSigNum=\t\t", SigNum,
+        "\n\tObsNum=\t\t", ObsNum,
+        "\n\tIteration=\t", IterNum,
+        "\n\tSigBits=\t", BitsNum,
+        "\n\tPSK=\t\t", PSK,
+        )
+
 if __name__ == "__main__":
 
-    # 入力アンテナ数、出力アンテナ数
+    # 送信アンテナ数、受信アンテナ数
     M = int(args.SigNum)
     N = int(args.ObsNum)
     # 推測器
@@ -38,9 +51,13 @@ if __name__ == "__main__":
     # ループ数、シンボルビット数
     IterNum = int(args.IterNum)
     BitsNum = int(args.BitsNum)
+    # ログ表示
+    show_settings(args.Method, M, N, IterNum, BitsNum, "QPSK")
 
-    # 0〜40dBでシミュレート
-    for SNR_dB in np.linspace(0, 40.0, 11):
+    print("==========\n", "Simulation Phase.")
+    SNR_dB_list = np.linspace(0, 40.0, 11) # 0〜40dBでシミュレート
+    BER_list = []
+    for SNR_dB in SNR_dB_list:
         # デシベル・ノイズ処理
         SNR = 10.0**(SNR_dB/10.0)   # SNRを真値に変換
         N_0 = M / SNR               # 雑音の複素分散。シンボル辺りのエネルギーを1.0としている
@@ -49,8 +66,7 @@ if __name__ == "__main__":
         num_of_error_bit = 0        # 誤りビット数
 
         #####ctはappendで処理？
-
-        for i in range(IterNum):
+        for i in tqdm(range(IterNum), ncols=100, leave=False, desc="SNR_dB=\t"+str(SNR_dB)):
             data_bits = np.where(np.random.rand(M, BitsNum) > 0.5, 1, 0)                                          # M個の(BitsNum)bit列を作成
             tx_syms = bits2QPSK(data_bits)                                                                        # シンボル系列。QPSKなので(BitsNum)/2個のシンボル系列が出来る
             H_mat = (np.random.randn(N, M) + 1j * np.random.randn(N, M)) / np.sqrt(2)                             # 通信路行列
@@ -62,5 +78,8 @@ if __name__ == "__main__":
 
             num_of_error_bit += np.sum( np.sum( np.abs(data_bits - est_bits)))      # 誤りビット数をカウント
 
-        error_rate = num_of_error_bit / (IterNum * BitsNum * M)
-        print(error_rate)
+        BER = num_of_error_bit / (IterNum * BitsNum * M) # BER計算
+        BER_list.append(BER)                             # BER格納
+        print("\t| SNR[dB]= {0:>6} BER= {1:<10}".format(SNR_dB, BER))
+
+    print(" Simulation Completed.\n", "==========")
