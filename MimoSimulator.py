@@ -46,11 +46,11 @@ if __name__ == "__main__":
     # 送信アンテナ数、受信アンテナ数
     M = int(args.SigNum)
     N = int(args.ObsNum)
-    # 推測器
-    estimator = EstimationModules.Estimator(M, N)
     # ループ数、シンボルビット数
     IterNum = int(args.IterNum)
     BitsNum = int(args.BitsNum)
+    # 推測器
+    estimator = EstimationModules.Estimator(M, N, BitsNum)
     # ログ表示
     show_settings(args.Method, M, N, IterNum, BitsNum, "QPSK")
 
