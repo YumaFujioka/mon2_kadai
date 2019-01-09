@@ -2,10 +2,12 @@ import numpy as np
 import EstimationModules
 import argparse
 from tqdm import tqdm
+import csv
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
+# パーサ設定
 parser = argparse.ArgumentParser(
             prog="MimoSimulator",
             usage="MIMOシミュレータです。",
@@ -20,18 +22,19 @@ parser.add_argument("-i", "--IterNum", action="store", default=50000)
 parser.add_argument("-s", "--SymNum", action="store", default=256)
 args = parser.parse_args()
 
+# エンコーダ
 def bits2QPSK(bits):
     BPSK_T = 2.0 * bits.T - 1.0
     QPSK_T = (BPSK_T[0::2] + 1j * BPSK_T[1::2]) / np.sqrt(2)
     QPSK = QPSK_T.T # ただの転置。書きやすくするために転置してるだけ。
     return QPSK
-
+# デコーダ
 def QPSK2bits(QPSK):
     re_bits = np.where(QPSK.real > 0, 1, 0)
     im_bits = np.where(QPSK.imag > 0, 1, 0)
     bits = np.insert(re_bits, np.arange(1, len(re_bits[0])+1), im_bits, axis=1)
     return bits
-
+# 設定表示
 def show_settings(Method, TransNum, ObsNum, IterNum, SymNum, PSK):
     print(
         "==========\n",
@@ -45,7 +48,6 @@ def show_settings(Method, TransNum, ObsNum, IterNum, SymNum, PSK):
         )
 
 if __name__ == "__main__":
-
     # 送信アンテナ数、受信アンテナ数
     M = int(args.TransNum)
     N = int(args.ObsNum)
@@ -87,6 +89,16 @@ if __name__ == "__main__":
 
     print(" Simulation Completed.\n", "==========")
 
+    result = [[SNR_dB_list[i], BER_list[i]] for i in range(len(SNR_dB_list))]
+    with open("./csv/method="+str(args.Method)+"_M="+str(M)+"_N="+str(N)+'.csv', "w") as csvfile:
+        field = ["SNR[dB]", "BER"]
+        writer = csv.DictWriter(csvfile, fieldnames=field)
+        writer.writeheader()
+        for i in range(len(SNR_dB_list)):
+            writer.writerow({'SNR[dB]': SNR_dB_list[i], 'BER': BER_list[i]})
+
+    print("saved csv.")
+
     plt.figure()
     plt.title("method="+str(args.Method)+" M="+str(M)+" N="+str(N), fontsize=20)
     plt.xlabel("SNR[dB]", fontsize=16)
@@ -97,5 +109,5 @@ if __name__ == "__main__":
     plt.ylim([0, 0.35])
     plt.plot(SNR_dB_list, BER_list, marker="o", ls=":", color="green")
 
-    plt.savefig("method="+str(args.Method)+"_M="+str(M)+"_N="+str(N)+'.png')
+    plt.savefig("./graph/method="+str(args.Method)+"_M="+str(M)+"_N="+str(N)+'.png')
     print("saved graph.")
